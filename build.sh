@@ -87,7 +87,10 @@ run_and_log() {
   if [ -n "$VERBOSE" ] || [ -n "$DEBUG" ]; then
     printf "RUNNING:" >&2
     for _ in "$@"; do
-      [[ $_ =~ [[:space:] ]] && printf " '%s'" "$_" || printf " %s" "$_"
+      case "$_" in
+        *" "*) printf " '%s'" "$_" ;;
+        *) printf " %s" "$_" ;;
+      esac
     done >&2
     printf "\n" >&2
     "$@" 2>&1 | tee -a "$BUILD_LOG"
@@ -229,7 +232,12 @@ fi
 debug "SUDO: $SUDO"
 
 IMAGE_NAME="$(image_name $KALI_ARCH)"
+IMAGE_EXT="${IMAGE_NAME##*.}"
+if [ "$IMAGE_EXT" = "$IMAGE_NAME" ]; then
+  IMAGE_EXT="img"
+fi
 debug "IMAGE_NAME: $IMAGE_NAME"
+debug "IMAGE_EXT: $IMAGE_EXT"
 
 debug "ACTION: $ACTION"
 if [ "$ACTION" = "get-image-path" ]; then
