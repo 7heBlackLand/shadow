@@ -9,7 +9,7 @@ apt
 ca-certificates
 locales
 network-manager
-network-manager-gnome
+network-manager-applet
 wpasupplicant
 wireless-tools
 inetutils-ping
