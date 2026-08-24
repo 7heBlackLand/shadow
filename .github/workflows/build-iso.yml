@@ -68,17 +68,14 @@ jobs:
           cd images
           ISO="shadow-${{ inputs.profile || 'minimal' }}.iso"
           split -b 1900M "$ISO" "${ISO}.part-"
-          cat > RELEASE.md <<'EOF'
-# Shadow.iso (${{ inputs.profile || 'minimal' }}) release
-
-The ISO is larger than GitHub's 2 GiB per-file release limit, so it is
-split into multiple parts. Reassemble before use:
-
-    cat shadow-${{ inputs.profile || 'minimal' }}.iso.part-* > shadow-${{ inputs.profile || 'minimal' }}.iso
-    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
-
-Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot.
-EOF
+          echo "# Shadow.iso (${{ inputs.profile || 'minimal' }}) release" > RELEASE.md
+          echo "" >> RELEASE.md
+          echo "The ISO is larger than GitHub's 2 GiB per-file release limit, so it is split into multiple parts. Reassemble before use:" >> RELEASE.md
+          echo "" >> RELEASE.md
+          echo "    cat shadow-${{ inputs.profile || 'minimal' }}.iso.part-* > shadow-${{ inputs.profile || 'minimal' }}.iso" >> RELEASE.md
+          echo "    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" >> RELEASE.md
+          echo "" >> RELEASE.md
+          echo "Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot." >> RELEASE.md
           ls -lh "${ISO}.part-*"
 
       - name: Determine version
