@@ -31,6 +31,9 @@ jobs:
       image: kalilinux/kali-rolling
       options: --privileged
     timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,7 +74,9 @@ jobs:
               TAG="v0.0.1"
             else
               BASE="${LATEST#v}"
-              IFS='.' read -r MAJ MIN PAT <<< "$BASE"
+              MAJ="$(echo "$BASE" | cut -d. -f1)"
+              MIN="$(echo "$BASE" | cut -d. -f2)"
+              PAT="$(echo "$BASE" | cut -d. -f3)"
               PAT="$(( ${PAT:-0} + 1 ))"
               TAG="v${MAJ}.${MIN}.${PAT}"
             fi
