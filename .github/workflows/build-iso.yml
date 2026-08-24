@@ -58,7 +58,7 @@ jobs:
           test -f "$ISO" || { echo "ISO missing!"; exit 1; }
           echo "ISO size: $(du -h "$ISO" | cut -f1)"
           test -f "$ISO.sha256" || { echo "SHA missing!"; exit 1; }
-          sha256sum -c "$ISO.sha256"
+          ( cd images && sha256sum -c "shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" )
 
       - name: Determine version
         id: version
