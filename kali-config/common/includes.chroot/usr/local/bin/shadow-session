@@ -1,6 +1,6 @@
 #!/bin/sh
-# Shadow desktop session launcher (Openbox based)
-export XDG_CURRENT_DESKTOP=Shadow
+# Shadow desktop session launcher (Xfce based)
+export XDG_CURRENT_DESKTOP=XFCE
 export XDG_SESSION_DESKTOP=shadow
 export DESKTOP_SESSION=shadow
 export GTK_THEME=Breeze
@@ -9,4 +9,4 @@ export QT_QPA_PLATFORMTHEME=gtk3
 export QT_STYLE_OVERRIDE=Breeze
 export XCURSOR_THEME=breeze_cursors
 export XCURSOR_SIZE=24
-exec openbox --startup /etc/xdg/openbox/autostart
+exec xfce4-session

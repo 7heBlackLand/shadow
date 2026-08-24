@@ -1,18 +1,12 @@
-## Shadow.iso - Lightweight custom desktop (KDE-like appearance, no KDE Plasma)
-openbox
-tint2
-suckless-tools
+## Shadow.iso - Lightweight Xfce desktop
+xfce4
+xfce4-goodies
+lightdm
+lightdm-gtk-greeter
 thunar
 thunar-volman
 thunar-archive-plugin
-feh
-lightdm
-lightdm-gtk-greeter
-breeze
-breeze-icon-theme
-breeze-gtk-theme
-gtk2-engines
-gnome-themes-extra
+xfce4-power-manager
 fonts-dejavu
 fonts-dejavu-core
 fonts-liberation
@@ -22,4 +16,3 @@ xdg-desktop-portal-gtk
 lxappearance
 dunst
 libnotify-bin
-picom

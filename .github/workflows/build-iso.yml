@@ -63,15 +63,23 @@ jobs:
           test -f "$ISO.sha256" || { echo "SHA missing!"; exit 1; }
           ( cd images && sha256sum -c "shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" )
 
-      - name: Split ISO (GitHub caps release assets at 2 GiB)
+      - name: Check ISO size (GitHub caps release assets at 2 GiB)
+        id: size
         run: |
-          set +e
           ISO="images/shadow-${{ inputs.profile || 'minimal' }}.iso"
-          echo "cwd: $(pwd)"
-          ls -la images/ | head
+          SIZE=$(stat -c%s "$ISO")
+          echo "ISO size bytes: $SIZE"
+          if [ "$SIZE" -lt 2147483648 ]; then
+            echo "single=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "single=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Split ISO into <2 GiB parts
+        if: steps.size.outputs.single == 'false'
+        run: |
+          ISO="images/shadow-${{ inputs.profile || 'minimal' }}.iso"
           split -b 1900M "$ISO" "${ISO}.part-"
-          echo "split rc=$?"
-          ls -la "${ISO}.part-"* 2>&1
           echo "# Shadow.iso (${{ inputs.profile || 'minimal' }}) release" > images/RELEASE.md
           echo "" >> images/RELEASE.md
           echo "The ISO is larger than GitHub's 2 GiB per-file release limit, so it is split into multiple parts. Reassemble before use:" >> images/RELEASE.md
@@ -81,6 +89,16 @@ jobs:
           echo "" >> images/RELEASE.md
           echo "Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot." >> images/RELEASE.md
           ls -lh "${ISO}.part-"*
+
+      - name: Single-file release notes
+        if: steps.size.outputs.single == 'true'
+        run: |
+          echo "# Shadow.iso (${{ inputs.profile || 'minimal' }}) release" > images/RELEASE.md
+          echo "" >> images/RELEASE.md
+          echo "Download shadow-${{ inputs.profile || 'minimal' }}.iso, verify, and write to a USB drive:" >> images/RELEASE.md
+          echo "" >> images/RELEASE.md
+          echo "    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" >> images/RELEASE.md
+          echo "Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot." >> images/RELEASE.md
 
       - name: Determine version
         id: version
@@ -103,7 +121,21 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Next release tag: $TAG"
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (single file)
+        if: steps.size.outputs.single == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Shadow.iso ${{ inputs.profile || 'minimal' }} - ${{ steps.version.outputs.tag }}
+          files: |
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
+            images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt
+            images/RELEASE.md
+          fail_on_unmatched_files: true
+
+      - name: Create GitHub Release (split parts)
+        if: steps.size.outputs.single == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}

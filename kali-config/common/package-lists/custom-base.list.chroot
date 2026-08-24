@@ -13,8 +13,7 @@ network-manager-applet
 wpasupplicant
 wireless-tools
 inetutils-ping
-kali-linux-firmware
-kali-linux-firmware-graphics
+firmware-linux-free
 amd64-microcode
 intel-microcode
 polkitd
