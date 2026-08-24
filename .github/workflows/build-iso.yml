@@ -92,5 +92,5 @@ jobs:
           files: |
             images/shadow-${{ inputs.profile || 'minimal' }}.iso
             images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
-            images/shadow-${{ inputs.profile || 'minimal' }}.iso.buildinfo.txt
+            images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt
           fail_on_unmatched_files: true
