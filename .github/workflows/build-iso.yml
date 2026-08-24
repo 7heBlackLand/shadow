@@ -63,6 +63,24 @@ jobs:
           test -f "$ISO.sha256" || { echo "SHA missing!"; exit 1; }
           ( cd images && sha256sum -c "shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" )
 
+      - name: Split ISO (GitHub caps release assets at 2 GiB)
+        run: |
+          cd images
+          ISO="shadow-${{ inputs.profile || 'minimal' }}.iso"
+          split -b 1900M "$ISO" "${ISO}.part-"
+          cat > RELEASE.md <<'EOF'
+# Shadow.iso (${{ inputs.profile || 'minimal' }}) release
+
+The ISO is larger than GitHub's 2 GiB per-file release limit, so it is
+split into multiple parts. Reassemble before use:
+
+    cat shadow-${{ inputs.profile || 'minimal' }}.iso.part-* > shadow-${{ inputs.profile || 'minimal' }}.iso
+    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
+
+Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot.
+EOF
+          ls -lh "${ISO}.part-*"
+
       - name: Determine version
         id: version
         run: |
@@ -90,7 +108,8 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Shadow.iso ${{ inputs.profile || 'minimal' }} - ${{ steps.version.outputs.tag }}
           files: |
-            images/shadow-${{ inputs.profile || 'minimal' }}.iso
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso.part-*
             images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
             images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt
+            images/RELEASE.md
           fail_on_unmatched_files: true
