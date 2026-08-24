@@ -1,0 +1,97 @@
+name: Build Shadow Live ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Shadow profile to build"
+        required: true
+        default: "minimal"
+        type: choice
+        options:
+          - minimal
+          - extended
+      version:
+        description: "Release version tag (leave empty to auto-increment from v0.0.1)"
+        required: false
+        default: ""
+        type: string
+  push:
+    branches: [main, master]
+    paths-ignore: ['README.md', 'LICENSE', '.github/**']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install build dependencies (Kali live-build on Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            curl ca-certificates gnupg git rsync dpkg-dev wget python3 xz-utils
+          # Add the official Kali repository + keyring
+          curl -fsSL https://archive.kali.org/archive-key.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/kali-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/kali-archive-keyring.gpg] http://kali.download/kali kali-rolling main contrib non-free non-free-firmware" \
+            | sudo tee /etc/apt/sources.list.d/kali.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            live-build debootstrap kali-archive-keyring xorriso mtools sudo
+
+      - name: Show versions
+        run: |
+          lb --version
+          dpkg-query -f '${Version}\n' -W live-build
+
+      - name: Build Shadow ISO (${{ inputs.profile || 'minimal' }})
+        run: |
+          sudo ./build.sh ${{ inputs.profile || 'minimal' }} --verbose
+
+      - name: Verify artifacts
+        run: |
+          ls -lh images/
+          ISO="images/shadow-${{ inputs.profile || 'minimal' }}.iso"
+          test -f "$ISO" || { echo "ISO missing!"; exit 1; }
+          echo "ISO size: $(du -h "$ISO" | cut -f1)"
+          test -f "$ISO.sha256" || { echo "SHA missing!"; exit 1; }
+          sha256sum -c "$ISO.sha256"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            TAG="${{ inputs.version }}"
+          else
+            LATEST="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+            if [ -z "$LATEST" ]; then
+              TAG="v0.0.1"
+            else
+              BASE="${LATEST#v}"
+              IFS='.' read -r MAJ MIN PAT <<< "$BASE"
+              PAT="$(( ${PAT:-0} + 1 ))"
+              TAG="v${MAJ}.${MIN}.${PAT}"
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Next release tag: $TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Shadow.iso ${{ inputs.profile || 'minimal' }} - ${{ steps.version.outputs.tag }}
+          files: |
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
+            images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt
+          fail_on_unmatched_files: true

@@ -1,0 +1,7 @@
+font = DejaVu Sans 11
+background = #1d2025
+foreground = #eff0f1
+frame_color = #3daee9
+frame_width = 2
+idle_threshold = 0
+notification_max_age = 10000

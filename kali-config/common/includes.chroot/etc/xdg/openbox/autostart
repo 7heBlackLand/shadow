@@ -1,0 +1,27 @@
+# Shadow desktop autostart (Openbox)
+# Launched by openbox via shadow-session
+
+# Wallpaper
+feh --bg-scale /usr/share/backgrounds/shadow.png &
+
+# Panel
+tint2 &
+
+# Network applet
+nm-applet &
+
+# Polkit agent (GUI permissions)
+lxqt-policykit-agent &
+
+# Notifications
+dunst &
+
+# Audio (PipeWire)
+/usr/bin/pipewire &>/dev/null &
+/usr/bin/wireplumber &>/dev/null &
+
+# Optional compositor - DISABLED by default (uncomment to enable)
+# picom &
+
+# Keep XDG dirs fresh
+xdg-user-dirs-update &

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Shadow
+Comment=Shadow - lightweight custom Kali desktop (Openbox)
+Exec=shadow-session
+TryExec=shadow-session
+Type=Application
+DesktopNames=Shadow

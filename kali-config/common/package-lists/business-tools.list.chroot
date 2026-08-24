@@ -1,0 +1,14 @@
+## Shadow.iso - Selected business / security tools (MINIMAL profile base set)
+## Edit this file to change the tools shipped in every profile.
+nmap
+tcpdump
+netcat-openbsd
+bind9-dnsutils
+whois
+traceroute
+curl
+wget
+lynis
+sslscan
+testssl.sh
+httpie

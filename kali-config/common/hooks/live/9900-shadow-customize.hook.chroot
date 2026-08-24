@@ -1,0 +1,78 @@
+#!/bin/sh
+# Shadow.iso finalize hook - runs last (9900) inside the chroot.
+set -e
+
+echo "[shadow] Finalizing Shadow desktop configuration"
+
+# --- Default session + theme for the live user -----------------------------
+for u in kali root; do
+  if [ -d "/home/$u" ]; then
+    mkdir -p "/home/$u/.config/openbox"
+    cp -f /etc/xdg/openbox/rc.xml /etc/xdg/openbox/menu.xml /etc/xdg/openbox/autostart "/home/$u/.config/openbox/" 2>/dev/null || true
+    cp -rf /etc/skel/.config/. "/home/$u/.config/" 2>/dev/null || true
+    chown -R "$u:$u" "/home/$u/.config" 2>/dev/null || true
+  fi
+done
+
+# Accountsservice default session
+mkdir -p /var/lib/AccountsService/users
+if ! getent passwd kali >/dev/null 2>&1; then :; else
+  cat > /var/lib/AccountsService/users/kali <<USR
+[User]
+XSession=shadow
+Icon=/usr/share/icons/breeze/places/64/folder.svg
+USR
+fi
+
+# --- Low-RAM / service optimization -----------------------------------------
+# Mask optional/heavy services (still installable later)
+for svc in bluetooth.service bluetooth.target cups.service cups-browsed.service \
+           avahi-daemon.service avahi-daemon.socket ModemManager.service \
+           packagekit.service packagekit.socket saned.service; do
+  systemctl mask "$svc" 2>/dev/null || true
+done
+
+# Enable LightDM as the display manager
+if [ -x /usr/bin/lightdm ]; then
+  systemctl enable lightdm 2>/dev/null || true
+  echo "/usr/sbin/lightdm" > /etc/X11/default-display-manager 2>/dev/null || true
+fi
+
+# --- zram (low-RAM) ----------------------------------------------------------
+if [ -x /usr/bin/zram-generator ] || [ -e /usr/lib/systemd/system-generators/zram-generator ]; then
+  mkdir -p /etc/systemd/zram-generator.conf.d
+  printf '[zram0]\n' > /etc/systemd/zram-generator.conf.d/shadow.conf
+else
+  for u in zram-tools.service zram.service zramswap.service systemd-zram-setup@zram0.service; do
+    if systemctl list-unit-files 2>/dev/null | grep -q "^$u"; then
+      systemctl enable "$u" 2>/dev/null || true
+      break
+    fi
+  done
+fi
+
+# --- Locales (limit to en_US to save space) --------------------------------
+if [ -x /usr/sbin/locale-gen ]; then
+  echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+  locale-gen en_US.UTF-8 2>/dev/null || true
+  update-locale LANG=en_US.UTF-8 2>/dev/null || true
+fi
+
+# --- Breeze as system-wide default -----------------------------------------
+cat > /etc/environment.d/90-shadow.conf <<ENV
+GTK_THEME=Breeze
+QT_QPA_PLATFORMTHEME=gtk3
+QT_STYLE_OVERRIDE=Breeze
+XCURSOR_THEME=breeze_cursors
+ENV
+
+# --- ISO size cleanup (apt stays fully functional) --------------------------
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
+rm -rf /usr/share/doc/* /usr/share/info/* /usr/share/man/* 2>/dev/null || true
+# Keep only English locales data
+find /usr/share/locale -maxdepth 1 -mindepth 1 -type d ! -name 'en' ! -name 'en_US' ! -name 'C' \
+  -exec rm -rf {} + 2>/dev/null || true
+
+echo "[shadow] Done"
