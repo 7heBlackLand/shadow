@@ -65,18 +65,22 @@ jobs:
 
       - name: Split ISO (GitHub caps release assets at 2 GiB)
         run: |
-          cd images
-          ISO="shadow-${{ inputs.profile || 'minimal' }}.iso"
+          set +e
+          ISO="images/shadow-${{ inputs.profile || 'minimal' }}.iso"
+          echo "cwd: $(pwd)"
+          ls -la images/ | head
           split -b 1900M "$ISO" "${ISO}.part-"
-          echo "# Shadow.iso (${{ inputs.profile || 'minimal' }}) release" > RELEASE.md
-          echo "" >> RELEASE.md
-          echo "The ISO is larger than GitHub's 2 GiB per-file release limit, so it is split into multiple parts. Reassemble before use:" >> RELEASE.md
-          echo "" >> RELEASE.md
-          echo "    cat shadow-${{ inputs.profile || 'minimal' }}.iso.part-* > shadow-${{ inputs.profile || 'minimal' }}.iso" >> RELEASE.md
-          echo "    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" >> RELEASE.md
-          echo "" >> RELEASE.md
-          echo "Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot." >> RELEASE.md
-          ls -lh "${ISO}.part-*"
+          echo "split rc=$?"
+          ls -la "${ISO}.part-"* 2>&1
+          echo "# Shadow.iso (${{ inputs.profile || 'minimal' }}) release" > images/RELEASE.md
+          echo "" >> images/RELEASE.md
+          echo "The ISO is larger than GitHub's 2 GiB per-file release limit, so it is split into multiple parts. Reassemble before use:" >> images/RELEASE.md
+          echo "" >> images/RELEASE.md
+          echo "    cat shadow-${{ inputs.profile || 'minimal' }}.iso.part-* > shadow-${{ inputs.profile || 'minimal' }}.iso" >> images/RELEASE.md
+          echo "    sha256sum -c shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" >> images/RELEASE.md
+          echo "" >> images/RELEASE.md
+          echo "Then write shadow-${{ inputs.profile || 'minimal' }}.iso to a USB drive and boot." >> images/RELEASE.md
+          ls -lh "${ISO}.part-"*
 
       - name: Determine version
         id: version
