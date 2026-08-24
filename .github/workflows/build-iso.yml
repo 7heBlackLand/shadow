@@ -26,6 +26,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Build inside a pure Kali environment to avoid dpkg/apt clashes with Ubuntu
+    container:
+      image: kalilinux/kali-rolling
+      options: --privileged
     timeout-minutes: 360
     steps:
       - name: Checkout
@@ -34,28 +38,18 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Install build dependencies (Kali live-build on Ubuntu)
+      - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            curl ca-certificates gnupg git rsync dpkg-dev wget python3 xz-utils
-          # Add the official Kali repository + keyring
-          curl -fsSL https://archive.kali.org/archive-key.asc \
-            | sudo gpg --dearmor -o /usr/share/keyrings/kali-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/kali-archive-keyring.gpg] http://kali.download/kali kali-rolling main contrib non-free non-free-firmware" \
-            | sudo tee /etc/apt/sources.list.d/kali.list
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            live-build debootstrap kali-archive-keyring xorriso mtools sudo
-
-      - name: Show versions
-        run: |
-          lb --version
-          dpkg-query -f '${Version}\n' -W live-build
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            live-build debootstrap kali-archive-keyring xorriso mtools \
+            git ca-certificates rsync curl
+          which lb && lb --version
 
       - name: Build Shadow ISO (${{ inputs.profile || 'minimal' }})
         run: |
-          sudo ./build.sh ${{ inputs.profile || 'minimal' }} --verbose
+          chmod +x ./build.sh
+          ./build.sh ${{ inputs.profile || 'minimal' }} --verbose
 
       - name: Verify artifacts
         run: |
@@ -93,5 +87,5 @@ jobs:
           files: |
             images/shadow-${{ inputs.profile || 'minimal' }}.iso
             images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256
-            images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt
+            images/shadow-${{ inputs.profile || 'minimal' }}.iso.buildinfo.txt
           fail_on_unmatched_files: true
