@@ -1,18 +1,2 @@
-## Shadow.iso - Lightweight Xfce desktop
-xfce4
-xfce4-goodies
-lightdm
-lightdm-gtk-greeter
-thunar
-thunar-volman
-thunar-archive-plugin
-xfce4-power-manager
-fonts-dejavu
-fonts-dejavu-core
-fonts-liberation
-xdg-utils
-xdg-desktop-portal
-xdg-desktop-portal-gtk
-lxappearance
-dunst
-libnotify-bin
+## Shadow.iso - Desktop: official Kali Xfce desktop
+kali-desktop-xfce
