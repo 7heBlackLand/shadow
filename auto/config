@@ -148,5 +148,6 @@ lb config noauto \
   --bootappend-install "net.ifnames=0" \
   --security false \
   --win32-loader false \
+  --apt-recommends false \
   $lb_opts \
   "$@"
