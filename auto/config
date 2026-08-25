@@ -151,3 +151,7 @@ lb config noauto \
   --uefi-secure-boot disable \
   $lb_opts \
   "$@"
+
+# Keep the ISO small enough to ship as a single <2 GiB GitHub release asset:
+# use xz-compressed squashfs (far better ratio than the default gzip).
+echo 'MKSQUASHFS_OPTIONS="-comp xz -Xbcj x86 -b 1024K -Xcompression-level 9"' >> config/common

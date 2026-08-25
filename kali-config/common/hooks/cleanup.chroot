@@ -1,0 +1,13 @@
+#!/bin/bash
+# Reduce the installed footprint so the squashed filesystem fits into a
+# single <2 GiB GitHub release asset (GitHub caps release files at 2 GiB).
+set -e
+
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+rm -rf /var/cache/apt/*
+rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* \
+       /usr/share/lintian/* /usr/share/bug/* /usr/share/doc-base/* 2>/dev/null || true
+rm -rf /var/log/* /var/tmp/* /tmp/* 2>/dev/null || true
+find /usr/share/locale -mindepth 1 -maxdepth 1 \
+     ! -name 'en*' ! -name 'C' ! -name 'C.UTF-8' -exec rm -rf {} + 2>/dev/null || true
