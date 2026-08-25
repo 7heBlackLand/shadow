@@ -3,14 +3,20 @@ name: Build Shadow Live ISO
 on:
   workflow_dispatch:
     inputs:
-      profile:
-        description: "Shadow profile to build"
+      variant:
+        description: "Kali live-build variant to build"
         required: true
-        default: "minimal"
+        default: "shadow"
+        type: string
+      arch:
+        description: "Target architecture"
+        required: true
+        default: "amd64"
         type: choice
         options:
-          - minimal
-          - extended
+          - amd64
+          - i386
+          - arm64
       version:
         description: "Release version tag (leave empty to auto-increment from v0.0.1)"
         required: false
@@ -18,7 +24,7 @@ on:
         type: string
   push:
     branches: [main, master]
-    paths-ignore: ['README.md', 'LICENSE', '.github/**']
+    paths-ignore: ['README.md', 'LICENSE']
 
 permissions:
   contents: write
@@ -26,7 +32,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Build inside a pure Kali environment to avoid dpkg/apt clashes with Ubuntu
+    # Build inside a pure Kali environment to match target packaging exactly
     container:
       image: kalilinux/kali-rolling
       options: --privileged
@@ -48,6 +54,16 @@ jobs:
             live-build debootstrap kali-archive-keyring xorriso mtools \
             git ca-certificates rsync curl
           which lb && lb --version
+
+      - name: Cache live-build downloaded packages
+        # Speeds up subsequent builds by reusing .deb files live-build already
+        # downloaded. Restored by prefix; a fresh run_id key is saved each time.
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: livebuild-${{ inputs.variant || 'shadow' }}-${{ inputs.arch || 'amd64' }}-kali-rolling-${{ github.run_id }}
+          restore-keys: |
+            livebuild-${{ inputs.variant || 'shadow' }}-${{ inputs.arch || 'amd64' }}-kali-rolling-
 
       - name: Determine version
         id: version
@@ -77,91 +93,86 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Next release tag: $TAG"
 
-      - name: Build Shadow ISO (${{ inputs.profile || 'minimal' }})
+      - name: Build Shadow ISO (${{ inputs.variant || 'shadow' }} / ${{ inputs.arch || 'amd64' }})
+        id: build
         run: |
+          VARIANT="${{ inputs.variant || 'shadow' }}"
+          ARCH="${{ inputs.arch || 'amd64' }}"
           chmod +x ./build.sh
-          ./build.sh ${{ inputs.profile || 'minimal' }} --verbose
+          # --no-clean preserves the restored live-build package cache (cache/)
+          # so subsequent builds reuse already-downloaded .deb files.
+          ./build.sh --variant "$VARIANT" --arch "$ARCH" --no-clean --verbose
+          shopt -s nullglob
+          SRC=( images/*.iso )
+          test -e "${SRC[0]}" || { echo "ISO not produced!"; ls -la images/; exit 1; }
+          echo "iso_path=${SRC[0]}" >> "$GITHUB_OUTPUT"
+          echo "Built image: ${SRC[0]}"
 
-      - name: Rename ISO to versioned name
+      - name: Rename + generate SHA256 checksum
+        id: rename
         run: |
-          SRC="images/shadow-${{ inputs.profile || 'minimal' }}.iso"
-          DST="images/shadow-${{ steps.version.outputs.tag }}.iso"
-          test -f "$SRC" || { echo "ISO missing!"; exit 1; }
-          mv -f "$SRC" "$DST"
-          mv -f "images/shadow-${{ inputs.profile || 'minimal' }}.iso.sha256" "images/shadow-${{ steps.version.outputs.tag }}.iso.sha256"
-          mv -f "images/shadow-${{ inputs.profile || 'minimal' }}.buildinfo.txt" "images/shadow-${{ steps.version.outputs.tag }}.buildinfo.txt" 2>/dev/null || true
-          mv -f "images/shadow-${{ inputs.profile || 'minimal' }}.log" "images/shadow-${{ steps.version.outputs.tag }}.log" 2>/dev/null || true
-          # Rewrite sha256 to reference the renamed file
-          ( cd images && sha256sum "shadow-${{ steps.version.outputs.tag }}.iso" > "shadow-${{ steps.version.outputs.tag }}.iso.sha256" )
+          TAG="${{ steps.version.outputs.tag }}"
+          shopt -s nullglob
+          SRC=( images/*.iso )
+          LOG=( images/*.log )
+          test -e "${SRC[0]}" || { echo "ISO missing!"; exit 1; }
+          mv -f "${SRC[0]}" "images/shadow-${TAG}.iso"
+          mv -f "${LOG[0]}" "images/shadow-${TAG}.log" 2>/dev/null || true
+          ( cd images && sha256sum "shadow-${TAG}.iso" > "shadow-${TAG}.iso.sha256" )
+          echo "iso=images/shadow-${TAG}.iso" >> "$GITHUB_OUTPUT"
+          echo "sha=images/shadow-${TAG}.iso.sha256" >> "$GITHUB_OUTPUT"
+          echo "log=images/shadow-${TAG}.log" >> "$GITHUB_OUTPUT"
+          echo "----- sha256sum -----"
+          cat "images/shadow-${TAG}.iso.sha256"
 
-      - name: Verify artifacts
-        run: |
-          ls -lh images/
-          ISO="images/shadow-${{ steps.version.outputs.tag }}.iso"
-          test -f "$ISO" || { echo "ISO missing!"; exit 1; }
-          echo "ISO size: $(du -h "$ISO" | cut -f1)"
-          test -f "$ISO.sha256" || { echo "SHA missing!"; exit 1; }
-          ( cd images && sha256sum -c "shadow-${{ steps.version.outputs.tag }}.iso.sha256" )
-
-      - name: Check ISO size (GitHub caps release assets at 2 GiB)
+      - name: Report exact ISO size
         id: size
         run: |
-          ISO="images/shadow-${{ steps.version.outputs.tag }}.iso"
+          ISO="${{ steps.rename.outputs.iso }}"
           SIZE=$(stat -c%s "$ISO")
-          echo "ISO size bytes: $SIZE"
-          if [ "$SIZE" -lt 2147483648 ]; then
-            echo "single=true" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "Exact ISO size: $SIZE bytes ($(numfmt --to=iec-i --suffix=B $SIZE))"
+          # Hard cap: GitHub release assets must be < 2 GiB
+          if [ "$SIZE" -ge 2147483648 ]; then
+            echo "::error::ISO is >= 2 GiB and cannot be uploaded to a GitHub Release"
+            exit 1
+          fi
+          # Soft target: ~1.6 GiB. Warn but do not fail (baseline may exceed;
+          # later optimization stages bring it down).
+          if [ "$SIZE" -gt 1717986918 ]; then
+            echo "::warning::ISO ($(numfmt --to=iec-i --suffix=B $SIZE)) exceeds the ~1.6 GiB target. This is acceptable for a baseline measurement; optimize in later stages."
           else
-            echo "single=false" >> "$GITHUB_OUTPUT"
+            echo "ISO is within the ~1.6 GiB target."
           fi
 
-      - name: Split ISO into <2 GiB parts
-        if: steps.size.outputs.single == 'false'
+      - name: Verify checksum
         run: |
-          ISO="images/shadow-${{ steps.version.outputs.tag }}.iso"
-          split -b 1900M "$ISO" "${ISO}.part-"
-          echo "# Shadow.iso (${{ steps.version.outputs.tag }}) release" > images/RELEASE.md
-          echo "" >> images/RELEASE.md
-          echo "The ISO is larger than GitHub's 2 GiB per-file release limit, so it is split into multiple parts. Reassemble before use:" >> images/RELEASE.md
-          echo "" >> images/RELEASE.md
-          echo "    cat shadow-${{ steps.version.outputs.tag }}.iso.part-* > shadow-${{ steps.version.outputs.tag }}.iso" >> images/RELEASE.md
-          echo "    sha256sum -c shadow-${{ steps.version.outputs.tag }}.iso.sha256" >> images/RELEASE.md
-          echo "" >> images/RELEASE.md
-          echo "Then write shadow-${{ steps.version.outputs.tag }}.iso to a USB drive and boot." >> images/RELEASE.md
-          ls -lh "${ISO}.part-"*
+          cd images
+          sha256sum -c "shadow-${{ steps.version.outputs.tag }}.iso.sha256"
 
-      - name: Single-file release notes
-        if: steps.size.outputs.single == 'true'
-        run: |
-          echo "# Shadow.iso (${{ steps.version.outputs.tag }}) release" > images/RELEASE.md
-          echo "" >> images/RELEASE.md
-          echo "Download shadow-${{ steps.version.outputs.tag }}.iso, verify, and write to a USB drive:" >> images/RELEASE.md
-          echo "" >> images/RELEASE.md
-          echo "    sha256sum -c shadow-${{ steps.version.outputs.tag }}.iso.sha256" >> images/RELEASE.md
-          echo "Then write shadow-${{ steps.version.outputs.tag }}.iso to a USB drive and boot." >> images/RELEASE.md
+      - name: Upload GitHub Actions artifacts (ISO + sha256 + build log)
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-iso-${{ steps.version.outputs.tag }}
+          path: |
+            images/shadow-${{ steps.version.outputs.tag }}.iso
+            images/shadow-${{ steps.version.outputs.tag }}.iso.sha256
+            images/shadow-${{ steps.version.outputs.tag }}.log
+          if-no-files-found: error
+          retention-days: 90
 
-      - name: Create GitHub Release (single file)
-        if: steps.size.outputs.single == 'true'
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: Shadow.iso ${{ inputs.profile || 'minimal' }} - ${{ steps.version.outputs.tag }}
+          name: Shadow.iso ${{ inputs.variant || 'shadow' }} - ${{ steps.version.outputs.tag }}
+          body: |
+            Baseline Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
+
+            Verified exact size: ${{ steps.size.outputs.size_bytes }} bytes.
+            See the attached `.sha256` to verify the download.
           files: |
             images/shadow-${{ steps.version.outputs.tag }}.iso
             images/shadow-${{ steps.version.outputs.tag }}.iso.sha256
-            images/shadow-${{ steps.version.outputs.tag }}.buildinfo.txt
-            images/RELEASE.md
-          fail_on_unmatched_files: true
-
-      - name: Create GitHub Release (split parts)
-        if: steps.size.outputs.single == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Shadow.iso ${{ inputs.profile || 'minimal' }} - ${{ steps.version.outputs.tag }}
-          files: |
-            images/shadow-${{ steps.version.outputs.tag }}.iso.part-*
-            images/shadow-${{ steps.version.outputs.tag }}.iso.sha256
-            images/shadow-${{ steps.version.outputs.tag }}.buildinfo.txt
-            images/RELEASE.md
+            images/shadow-${{ steps.version.outputs.tag }}.log
           fail_on_unmatched_files: true

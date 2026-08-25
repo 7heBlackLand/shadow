@@ -1,0 +1,20 @@
+## Shadow baseline live image
+##
+## Software selection: ONLY kali-linux-core + kali-desktop-xfce.
+## kali-desktop-live is included because it provides live-boot / live-config,
+## which are required for the live system to actually boot (priority #1:
+## boot reliability). It is part of Kali's live-boot system, not an extra
+## security tool / application.
+##
+## $ ./build.sh --variant shadow
+
+## Base Kali system + live-boot / live-config (required for live boot)
+kali-linux-core
+kali-desktop-live
+
+## Lightweight XFCE desktop
+kali-desktop-xfce
+
+## No extra Kali metapackages, security tools, applications, or utilities
+## at the baseline stage. Optimizations are added in later stages, each
+## measured against this baseline.
