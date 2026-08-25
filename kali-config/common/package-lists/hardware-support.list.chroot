@@ -3,12 +3,14 @@
 ## some built-in logic to automatically install the right firmware, but for
 ## that we need DEP-11 metadata in the repository, and Kali has no such.
 ##
-## Baseline: curated common firmware only (replaces full kali-linux-firmware
-## collection to keep the ISO < 2 GiB). Covers free firmware, common Intel/AMD
-## GPU, and common WiFi/Ethernet. Exotic hardware may need extra firmware later.
+## Baseline: curated common firmware only, to keep the ISO < 2 GiB.
+## NOTE: firmware-amd-graphics / firmware-intel-graphics both Depend on
+## firmware-linux-nonfree, which drags in the 208 MB nvidia blob (+ mediatek,
+## misc-nonfree, libertas). So we do NOT use those metapackages. We keep only
+## firmware-linux-free plus the common WiFi/Ethernet firmwares. Exotic/nonfree
+## GPU firmware is omitted to meet the size cap; VMs and kernel-builtin support
+## still display correctly.
 firmware-linux-free
-firmware-amd-graphics
-firmware-intel-graphics
 firmware-iwlwifi
 firmware-brcm80211
 firmware-realtek
