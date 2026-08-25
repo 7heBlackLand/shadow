@@ -9,5 +9,7 @@ rm -rf /var/cache/apt/*
 rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* \
        /usr/share/lintian/* /usr/share/bug/* /usr/share/doc-base/* 2>/dev/null || true
 rm -rf /var/log/* /var/tmp/* /tmp/* 2>/dev/null || true
+rm -f /usr/lib/locale/locale-archive 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 \
      ! -name 'en*' ! -name 'C' ! -name 'C.UTF-8' -exec rm -rf {} + 2>/dev/null || true
+find /usr/share/zoneinfo -mindepth 1 ! -name 'UTC' ! -name 'Etc' -exec rm -rf {} + 2>/dev/null || true

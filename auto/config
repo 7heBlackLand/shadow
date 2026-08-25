@@ -133,6 +133,7 @@ lb config noauto \
   --updates false \
   --backports false \
   --source false \
+  --apt-recommends false \
   --firmware-binary true \
   --firmware-chroot true \
   --mirror-bootstrap "$kali_mirror" \
