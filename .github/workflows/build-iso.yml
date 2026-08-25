@@ -41,6 +41,14 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            live-build debootstrap kali-archive-keyring xorriso mtools \
+            git ca-certificates rsync curl
+          which lb && lb --version
+
       - name: Determine version
         id: version
         env:
@@ -65,14 +73,6 @@ jobs:
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Next release tag: $TAG"
-
-      - name: Install build dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            live-build debootstrap kali-archive-keyring xorriso mtools \
-            git ca-certificates rsync curl
-          which lb && lb --version
 
       - name: Build Shadow ISO (${{ inputs.profile || 'minimal' }})
         run: |
