@@ -190,7 +190,7 @@ if [ "$HOST_ARCH" != "$KALI_ARCH" ]; then
 fi
 
 # Build parameters for lb config
-KALI_CONFIG_OPTS="--distribution $KALI_DIST -- --variant $KALI_VARIANT"
+KALI_CONFIG_OPTS="--distribution $KALI_DIST --apt-recommends false -- --variant $KALI_VARIANT"
 if [ -n "$OPT_pu" ]; then
   KALI_CONFIG_OPTS="$KALI_CONFIG_OPTS --proposed-updates"
   KALI_DIST="$KALI_DIST+pu"
