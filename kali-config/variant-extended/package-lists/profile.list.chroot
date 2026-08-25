@@ -1,9 +1,0 @@
-## Shadow.iso - EXTENDED profile (extra selected security tools on top of common)
-ffuf
-gobuster
-nikto
-whatweb
-sqlmap
-masscan
-amass
-smbclient

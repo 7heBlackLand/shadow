@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=Shadow
-Comment=Shadow - lightweight custom Kali desktop (Xfce)
-Exec=shadow-session
-TryExec=shadow-session
-Type=Application
-DesktopNames=XFCE

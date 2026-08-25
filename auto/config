@@ -133,7 +133,6 @@ lb config noauto \
   --updates false \
   --backports false \
   --source false \
-  --apt-recommends false \
   --firmware-binary true \
   --firmware-chroot true \
   --mirror-bootstrap "$kali_mirror" \
@@ -149,10 +148,5 @@ lb config noauto \
   --bootappend-install "net.ifnames=0" \
   --security false \
   --win32-loader false \
-  --uefi-secure-boot disable \
   $lb_opts \
   "$@"
-
-# Keep the ISO small enough to ship as a single <2 GiB GitHub release asset:
-# use xz-compressed squashfs (far better ratio than the default gzip).
-echo 'MKSQUASHFS_OPTIONS="-comp xz -Xbcj x86 -b 1024K"' >> config/common
