@@ -22,10 +22,9 @@ Provides: firefox-esr, firefox, www-browser
 Description: Dummy provider for the browser dependency (no real Firefox shipped)
 CTRL
 
-equivs-build -a amd64 /tmp/shadow-browser-dummy.control >/dev/null 2>&1 || \
-  equivs-build /tmp/shadow-browser-dummy.control >/dev/null 2>&1
-
-dpkg -i shadow-browser-dummy_1.0_all.deb
+cd /tmp
+equivs-build /tmp/shadow-browser-dummy.control
+dpkg -i /tmp/shadow-browser-dummy_1.0_all.deb
 
 # Now the dependency is satisfied by the dummy; remove the real browser.
 apt-get purge -y --auto-remove firefox-esr || true
@@ -33,4 +32,4 @@ apt-get purge -y --auto-remove firefox-esr || true
 # Clean up the build tooling we only needed for the dummy.
 apt-get purge -y --auto-remove equivs dpkg-dev >/dev/null 2>&1 || true
 
-rm -f /tmp/shadow-browser-dummy.control shadow-browser-dummy_1.0_all.deb
+rm -f /tmp/shadow-browser-dummy.control /tmp/shadow-browser-dummy_1.0_all.deb
