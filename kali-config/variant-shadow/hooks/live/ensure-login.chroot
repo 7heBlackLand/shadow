@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# ensure-login.chroot — Guarantee that the "kali" user exists with a known
+# password so the LightDM login screen always accepts kali/kali.
+#
+# This runs at live-boot (not build time), before LightDM starts.
+#
+
+set -e
+
+USER="kali"
+PASS="kali"
+
+# If the user does not exist yet, create it
+if ! getent passwd "$USER" >/dev/null 2>&1; then
+  useradd -m -s /bin/zsh "$USER"
+fi
+
+# Set the password (works even if the user already exists)
+echo "${USER}:${PASS}" | chpasswd
+
+# Ensure the user is in the standard Kali groups
+for grp in sudo adm dialout cdrom floppy audio dip video plugdev netdev wireshark; do
+  getent group "$grp" >/dev/null 2>&1 && usermod -a -G "$grp" "$USER" 2>/dev/null || true
+done

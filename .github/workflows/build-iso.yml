@@ -93,6 +93,20 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Next release tag: $TAG"
 
+      - name: Verify login configuration
+        run: |
+          echo "--- Checking login-related files ---"
+          test -f kali-config/common/includes.chroot/etc/lightdm/lightdm.conf \
+            || { echo "::error::Missing LightDM auto-login config"; exit 1; }
+          test -f kali-config/variant-shadow/hooks/live/ensure-login.chroot \
+            || { echo "::error::Missing ensure-login hook"; exit 1; }
+          chmod +x kali-config/variant-shadow/hooks/live/ensure-login.chroot
+          echo "LightDM config:"
+          cat kali-config/common/includes.chroot/etc/lightdm/lightdm.conf
+          echo "ensure-login hook:"
+          cat kali-config/variant-shadow/hooks/live/ensure-login.chroot
+          echo "--- All login files present ---"
+
       - name: Build Shadow ISO (${{ inputs.variant || 'shadow' }} / ${{ inputs.arch || 'amd64' }})
         id: build
         run: |
@@ -167,7 +181,10 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Shadow.iso ${{ inputs.variant || 'shadow' }} - ${{ steps.version.outputs.tag }}
           body: |
-            Baseline Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
+            Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
+
+            **Login:** Username `kali` / Password `kali` — auto-login enabled.
+            If auto-login is skipped, use `kali` / `kali` at the LightDM login screen.
 
             Verified exact size: ${{ steps.size.outputs.size_bytes }} bytes.
             See the attached `.sha256` to verify the download.
