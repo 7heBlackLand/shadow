@@ -22,6 +22,11 @@ gvfs
 gvfs-backends
 udisks2
 
+## Wireless networking - NetworkManager, WPA supplicant and rfkill control
+network-manager
+wpasupplicant
+rfkill
+
 ## No extra Kali metapackages, security tools, applications, or utilities
 ## at the baseline stage. Optimizations are added in later stages, each
 ## measured against this baseline.

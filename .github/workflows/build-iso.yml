@@ -194,11 +194,11 @@ jobs:
           body: |
             Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
 
-            **Login:** Username `gost` / Password `shadow` — auto-login enabled.
-            If auto-login is skipped, use `gost` / `shadow` at the LightDM login screen.
+            **Login:** Username `shadow` / Password `king` — auto-login enabled.
+            If auto-login is skipped, use `shadow` / `king` at the LightDM login screen.
 
             **Hostname:** `egypt`
-            **Prompt:** `egypt@gost:`
+            **Prompt:** `egypt@shadow:`
 
             **Customizations:**
             - GTK Theme: Flat-Remix-GTK-Green-Darkest

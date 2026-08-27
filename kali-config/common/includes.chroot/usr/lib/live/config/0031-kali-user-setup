@@ -12,7 +12,7 @@
 # and in the live-build configuration).
 
 get_user_list() {
-    echo gost
+    echo shadow
 }
 
 configure_zsh() {
@@ -77,8 +77,8 @@ if [ -e /var/lib/live/config/kali-user-setup ]; then
     exit 0
 fi
 
-# Set password for the user gost
-usermod -p 'shadow' gost
+# Set password for the user shadow
+usermod -p 'king' shadow
 
 # Apply various configuration
 configure_zsh

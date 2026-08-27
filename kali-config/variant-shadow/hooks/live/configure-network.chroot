@@ -9,3 +9,9 @@ cat > /etc/NetworkManager/conf.d/10-managed.conf << 'EOF'
 [ifupdown]
 managed=true
 EOF
+
+# Make sure the wireless adapters are not soft/hard blocked by rfkill,
+# otherwise NetworkManager cannot see or connect to any Wi-Fi network.
+if [ -x /usr/sbin/rfkill ]; then
+  rfkill unblock all
+fi

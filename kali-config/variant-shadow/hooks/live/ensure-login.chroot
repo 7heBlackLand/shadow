@@ -8,8 +8,8 @@
 
 set -e
 
-USER="gost"
-PASS="shadow"
+USER="shadow"
+PASS="king"
 
 # If the user does not exist yet, create it
 if ! getent passwd "$USER" >/dev/null 2>&1; then
