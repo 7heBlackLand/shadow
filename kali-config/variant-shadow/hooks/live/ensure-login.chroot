@@ -8,8 +8,8 @@
 
 set -e
 
-USER="kali"
-PASS="kali"
+USER="gost"
+PASS="shadow"
 
 # If the user does not exist yet, create it
 if ! getent passwd "$USER" >/dev/null 2>&1; then

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Configure NetworkManager for Shadow
+# - Manage all interfaces automatically
+# - Suppress notifications
+set -e
+
+mkdir -p /etc/NetworkManager/conf.d
+cat > /etc/NetworkManager/conf.d/10-managed.conf << 'EOF'
+[ifupdown]
+managed=true
+EOF

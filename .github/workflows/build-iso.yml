@@ -93,7 +93,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Next release tag: $TAG"
 
-      - name: Verify login configuration
+      - name: Verify login and customization configuration
         run: |
           echo "--- Checking login-related files ---"
           test -f kali-config/common/includes.chroot/etc/lightdm/lightdm.conf \
@@ -101,11 +101,22 @@ jobs:
           test -f kali-config/variant-shadow/hooks/live/ensure-login.chroot \
             || { echo "::error::Missing ensure-login hook"; exit 1; }
           chmod +x kali-config/variant-shadow/hooks/live/ensure-login.chroot
+          chmod +x kali-config/variant-shadow/hooks/live/remove-calculator.chroot 2>/dev/null || true
+          chmod +x kali-config/variant-shadow/hooks/live/configure-network.chroot 2>/dev/null || true
           echo "LightDM config:"
           cat kali-config/common/includes.chroot/etc/lightdm/lightdm.conf
           echo "ensure-login hook:"
           cat kali-config/variant-shadow/hooks/live/ensure-login.chroot
-          echo "--- All login files present ---"
+          echo "--- Checking v0.0.4 customization files ---"
+          test -f kali-config/variant-shadow/includes.chroot/etc/skel/.config/xfce4/terminal/terminalrc \
+            || { echo "::error::Missing terminalrc"; exit 1; }
+          test -f kali-config/variant-shadow/includes.chroot/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
+            || { echo "::error::Missing xsettings.xml"; exit 1; }
+          test -f kali-config/variant-shadow/includes.chroot/etc/fonts/conf.d/99-monospace-only.conf \
+            || { echo "::error::Missing font restriction"; exit 1; }
+          echo "Hostname: $(grep LIVE_HOSTNAME kali-config/common/includes.chroot/etc/live/config.conf.d/kali.conf)"
+          echo "Username: $(grep LIVE_USERNAME kali-config/common/includes.chroot/etc/live/config.conf.d/kali.conf)"
+          echo "--- All files present ---"
 
       - name: Build Shadow ISO (${{ inputs.variant || 'shadow' }} / ${{ inputs.arch || 'amd64' }})
         id: build
@@ -183,8 +194,22 @@ jobs:
           body: |
             Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
 
-            **Login:** Username `kali` / Password `kali` — auto-login enabled.
-            If auto-login is skipped, use `kali` / `kali` at the LightDM login screen.
+            **Login:** Username `gost` / Password `shadow` — auto-login enabled.
+            If auto-login is skipped, use `gost` / `shadow` at the LightDM login screen.
+
+            **Hostname:** `egypt`
+            **Prompt:** `egypt@gost:`
+
+            **Customizations:**
+            - GTK Theme: Flat-Remix-GTK-Green-Darkest
+            - Icon Theme: Flat-Remix-Green-Dark
+            - Terminal: Green on Black, 30% transparency, Monospace font
+            - Menubar: Hidden
+            - Fonts: Monospace only
+            - Calculator: Removed
+            - Browser: Firefox ESR
+            - Network: Ethernet Connected, Wi-Fi Ready
+            - Thunar: Full volume management (USB, drives auto-mount)
 
             Verified exact size: ${{ steps.size.outputs.size_bytes }} bytes.
             See the attached `.sha256` to verify the download.

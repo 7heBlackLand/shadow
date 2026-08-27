@@ -1,0 +1,7 @@
+#!/bin/bash
+# Remove mate-calc to reduce ISO size and clean up the
+# application menu. Users can install a calculator later
+# if needed: apt install mate-calc
+set -e
+
+apt-get purge -y --auto-remove mate-calc || true

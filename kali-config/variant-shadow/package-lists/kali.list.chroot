@@ -15,6 +15,13 @@ kali-desktop-live
 ## Lightweight XFCE desktop
 kali-desktop-xfce
 
+## Thunar file manager extras - volume management, drive/USB auto-mount
+thunar-volman
+thunar-archive-plugin
+gvfs
+gvfs-backends
+udisks2
+
 ## No extra Kali metapackages, security tools, applications, or utilities
 ## at the baseline stage. Optimizations are added in later stages, each
 ## measured against this baseline.
