@@ -12,6 +12,8 @@ EOF
 
 # Make sure the wireless adapters are not soft/hard blocked by rfkill,
 # otherwise NetworkManager cannot see or connect to any Wi-Fi network.
+# /dev/rfkill does not exist at chroot/build time, so ignore failure here;
+# it is only relevant at runtime on real hardware.
 if [ -x /usr/sbin/rfkill ]; then
-  rfkill unblock all
+  rfkill unblock all || true
 fi
