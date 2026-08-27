@@ -13,7 +13,13 @@ PASS="king"
 
 # If the user does not exist yet, create it
 if ! getent passwd "$USER" >/dev/null 2>&1; then
-  useradd -m -s /bin/zsh "$USER"
+  # If a group with the same name already exists, useradd would fail trying to
+  # auto-create it as the login group, so attach the user to that existing group.
+  if getent group "$USER" >/dev/null 2>&1; then
+    useradd -m -s /bin/zsh -g "$USER" "$USER"
+  else
+    useradd -m -s /bin/zsh "$USER"
+  fi
 fi
 
 # Set the password (works even if the user already exists)
