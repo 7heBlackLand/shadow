@@ -77,8 +77,9 @@ if [ -e /var/lib/live/config/kali-user-setup ]; then
     exit 0
 fi
 
-# Set password for the user shadow
-usermod -p 'king' shadow
+# Set password for the user shadow (chpasswd, not usermod -p: the latter
+# stores the plaintext string in /etc/shadow and login always fails)
+echo 'shadow:king' | chpasswd
 
 # Apply various configuration
 configure_zsh
