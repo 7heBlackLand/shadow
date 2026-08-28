@@ -15,6 +15,16 @@ kali-desktop-live
 ## Lightweight XFCE desktop
 kali-desktop-xfce
 
+## Default shell + terminal (matches terminal-note: zsh is the live user's
+## shell, QTerminal the x-terminal-emulator for the xfce variant)
+zsh
+qterminal
+
+## Noto fonts so the Kali prompt glyphs render correctly (㉿ U+327F needs a
+## CJK font; Symbols2 / Egyptian Hieroglyphs come from the extra set)
+fonts-noto-cjk
+fonts-noto-extra
+
 ## Thunar file manager extras - volume management, drive/USB auto-mount
 thunar-volman
 thunar-archive-plugin
