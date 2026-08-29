@@ -1,0 +1,3 @@
+##
+## Baseline: kernel headers excluded to reduce ISO size. DKMS modules can be
+## installed later when needed; not required for a functional live desktop.

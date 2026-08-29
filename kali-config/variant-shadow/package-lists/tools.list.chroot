@@ -1,0 +1,13 @@
+## Shadow selected security tools (v8)
+##
+## Deliberately small and curated. Install more later on the running system:
+##   sudo apt update && sudo apt install <package-name>
+## Kali repositories stay fully functional for this.
+
+nmap
+sqlmap
+nikto
+gobuster
+ffuf
+hydra
+tcpdump

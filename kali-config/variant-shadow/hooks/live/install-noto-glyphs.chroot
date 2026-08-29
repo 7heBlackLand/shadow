@@ -1,0 +1,58 @@
+#!/bin/bash
+# install-noto-glyphs.chroot — Install ONLY the Noto Egyptian Hieroglyphs
+# fallback font without keeping the Noto font packages (fonts-noto-core,
+# fonts-noto-extra, fonts-noto-cjk).
+#
+# Fira Code (set by fonts-firacode + 99-monospace-only.conf) is the default
+# font; Noto Sans Egyptian Hieroglyphs exists solely as a glyph fallback for
+# U+13000-U+1345F. The font ships in fonts-noto-core (not the big extra set),
+# so we download that .deb, copy out the single TTF, then drop the Noto
+# packages so neither fonts-noto-core nor fonts-noto-extra lands in the ISO.
+set -e
+
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+cd "$TMPDIR"
+apt-get download fonts-noto-core
+DEB=$(ls fonts-noto-core_*.deb)
+
+# Locate and extract the Egyptian Hieroglyphs font from the package's data
+# archive instead of hardcoding a member path that may move between releases
+# (it has historically been shipped under truetype/noto/).
+dpkg-deb --fsys-tarfile "$DEB" > data.tar
+NOTO_TTF=$(tar -tf data.tar | grep -m1 'EgyptianHieroglyph.*\.ttf' || true)
+if [ -z "$NOTO_TTF" ]; then
+    echo "ERROR: Noto Sans Egyptian Hieroglyphs not found in fonts-noto-core" >&2
+    exit 1
+fi
+NOTO_TTF="${NOTO_TTF#./}"
+DEST="/usr/share/fonts/noto/$(basename "$NOTO_TTF")"
+mkdir -p "$(dirname "$DEST")"
+if tar -xOf data.tar "./$NOTO_TTF" > "$DEST" 2>/dev/null; then
+    :
+else
+    tar -xOf data.tar "$NOTO_TTF" > "$DEST"
+fi
+
+cd /
+rm -rf "$TMPDIR"
+trap - EXIT
+
+# Guard against the noto sets being pulled in as dependencies. Purge each one
+# only if actually installed. If apt refuses, dependency integrity wins: keep
+# it and warn (like remove-calculator); a failed purge must never be masked.
+for pkg in fonts-noto-core fonts-noto-extra fonts-noto-cjk; do
+  if dpkg -l "$pkg" 2>/dev/null | grep -q '^ii'; then
+    if apt-get purge -y --auto-remove "$pkg"; then
+      echo "INFO: purged $pkg"
+    else
+      echo "WARN: could not purge $pkg (needed by another package) — keeping it" >&2
+    fi
+  fi
+done
+
+# Rebuild the font cache so the new glyphs are found
+if [ -x /usr/bin/fc-cache ]; then
+  fc-cache -f >/dev/null 2>&1
+fi

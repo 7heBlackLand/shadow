@@ -1,0 +1,6 @@
+##
+## Baseline: virtualization guest tools excluded to reduce ISO size.
+## (virtualbox-guest-x11, xrdp, open-vm-tools-desktop, qemu-guest-agent,
+## spice-vdagent, hyperv-daemons) — display still works at fixed resolution;
+## only auto-resize / clipboard sharing are lost. Re-add in a later stage if
+## needed for VM integration.

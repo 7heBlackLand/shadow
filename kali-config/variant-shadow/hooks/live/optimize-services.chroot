@@ -1,0 +1,41 @@
+#!/bin/bash
+# optimize-services.chroot — Low-RAM optimization (v8).
+#
+# Masks background daemons that are not needed on a lightweight live desktop.
+# Only units that are actually present are masked, and nothing is unmasked by
+# this hook. Packages are NOT removed, so apt/dpkg dependency relations stay
+# intact and services can be re-enabled on the running system any time
+# (systemctl unmask <unit>).
+set -e
+
+UNITS="
+  bluetooth.service
+  cups.service
+  cups.socket
+  avahi-daemon.service
+  avahi-daemon.socket
+  ModemManager.service
+  packagekit.service
+  packagekit-offline-update.service
+"
+
+for unit in $UNITS; do
+  if [ -e "/usr/lib/systemd/system/$unit" ] || [ -e "/etc/systemd/system/$unit" ]; then
+    systemctl mask "$unit"
+    echo "INFO: masked systemd unit: $unit"
+  fi
+done
+
+# picom default OFF: never start it even if the binary exists. A same-name
+# override in /etc/xdg/autostart suppresses any picom autostart a package
+# ships; the XFCE compositor is handled by the xfwm4.xml session config.
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/picom.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=picom
+Hidden=true
+NoDisplay=true
+X-GNOME-Autostart-enabled=false
+EOF
+echo "INFO: picom fully disabled (default OFF)"

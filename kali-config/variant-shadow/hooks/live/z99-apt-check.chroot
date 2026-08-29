@@ -1,0 +1,15 @@
+#!/bin/sh
+# z99-apt-check.chroot — v8 §20: verify apt/dpkg integrity after ALL package
+# changes. The z99 prefix sorts this hook last, so it runs after
+# remove-calculator, install-noto-glyphs, optimize-services and every package
+# list. If the dependency graph is broken, the build fails loudly here; a
+# failed check is never masked.
+set -e
+
+if ! command -v apt-get >/dev/null 2>&1; then
+    echo "WARN: apt-get not found; skipping apt-get check" >&2
+    exit 0
+fi
+
+apt-get check
+echo "INFO: apt-get check passed (APT/dpkg dependency metadata is consistent)"

@@ -1,0 +1,226 @@
+name: Build Shadow Live ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Kali live-build variant to build"
+        required: true
+        default: "shadow"
+        type: string
+      arch:
+        description: "Target architecture"
+        required: true
+        default: "amd64"
+        type: choice
+        options:
+          - amd64
+          - i386
+          - arm64
+      version:
+        description: "Release version tag (leave empty to auto-increment from v0.0.1)"
+        required: false
+        default: ""
+        type: string
+  push:
+    branches: [main, master]
+    paths-ignore: ['README.md', 'LICENSE']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Build inside a pure Kali environment to match target packaging exactly
+    container:
+      image: kalilinux/kali-rolling
+      options: --privileged
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            live-build debootstrap kali-archive-keyring xorriso mtools \
+            git ca-certificates rsync curl
+          which lb && lb --version
+
+      - name: Cache live-build downloaded packages
+        # Speeds up subsequent builds by reusing .deb files live-build already
+        # downloaded. Restored by prefix; a fresh run_id key is saved each time.
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: livebuild-${{ inputs.variant || 'shadow' }}-${{ inputs.arch || 'amd64' }}-kali-rolling-${{ github.run_id }}
+          restore-keys: |
+            livebuild-${{ inputs.variant || 'shadow' }}-${{ inputs.arch || 'amd64' }}-kali-rolling-
+
+      - name: Determine version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +o pipefail
+          if [ -n "${{ inputs.version }}" ]; then
+            TAG="${{ inputs.version }}"
+          else
+            RESP="$(mktemp)"
+            curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest" -o "$RESP"
+            LATEST="$(grep -m1 '"tag_name"' "$RESP" | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
+            rm -f "$RESP"
+            if [ -z "$LATEST" ]; then
+              TAG="v0.0.1"
+            else
+              BASE="${LATEST#v}"
+              MAJ="$(echo "$BASE" | cut -d. -f1)"
+              MIN="$(echo "$BASE" | cut -d. -f2)"
+              PAT="$(echo "$BASE" | cut -d. -f3)"
+              PAT="$(( ${PAT:-0} + 1 ))"
+              TAG="v${MAJ}.${MIN}.${PAT}"
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Next release tag: $TAG"
+
+      - name: Verify login and customization configuration
+        run: |
+          echo "--- Checking login-related files ---"
+          test -f kali-config/common/includes.chroot/etc/lightdm/lightdm.conf \
+            || { echo "::error::Missing LightDM auto-login config"; exit 1; }
+          test -f kali-config/variant-shadow/hooks/live/ensure-login.chroot \
+            || { echo "::error::Missing ensure-login hook"; exit 1; }
+          chmod +x kali-config/variant-shadow/hooks/live/ensure-login.chroot
+          chmod +x kali-config/variant-shadow/hooks/live/remove-calculator.chroot 2>/dev/null || true
+          chmod +x kali-config/variant-shadow/hooks/live/configure-network.chroot 2>/dev/null || true
+          chmod +x kali-config/variant-shadow/hooks/live/install-noto-glyphs.chroot 2>/dev/null || true
+          chmod +x kali-config/variant-shadow/hooks/live/optimize-services.chroot 2>/dev/null || true
+          chmod +x kali-config/variant-shadow/hooks/live/z99-apt-check.chroot 2>/dev/null || true
+          echo "LightDM config:"
+          cat kali-config/common/includes.chroot/etc/lightdm/lightdm.conf
+          echo "ensure-login hook:"
+          cat kali-config/variant-shadow/hooks/live/ensure-login.chroot
+          echo "--- Checking v0.0.8 customization files ---"
+          test -f kali-config/variant-shadow/includes.chroot/etc/skel/.config/xfce4/terminal/terminalrc \
+            || { echo "::error::Missing terminalrc"; exit 1; }
+          test -f kali-config/variant-shadow/includes.chroot/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
+            || { echo "::error::Missing xsettings.xml"; exit 1; }
+          test -f kali-config/variant-shadow/includes.chroot/etc/fonts/conf.d/99-monospace-only.conf \
+            || { echo "::error::Missing font restriction"; exit 1; }
+          echo "Hostname: $(grep LIVE_HOSTNAME kali-config/common/includes.chroot/etc/live/config.conf.d/kali.conf)"
+          echo "Username: $(grep LIVE_USERNAME kali-config/common/includes.chroot/etc/live/config.conf.d/kali.conf)"
+          echo "--- All files present ---"
+
+      - name: Build Shadow ISO (${{ inputs.variant || 'shadow' }} / ${{ inputs.arch || 'amd64' }})
+        id: build
+        run: |
+          VARIANT="${{ inputs.variant || 'shadow' }}"
+          ARCH="${{ inputs.arch || 'amd64' }}"
+          chmod +x ./build.sh
+          # --no-clean preserves the restored live-build package cache (cache/)
+          # so subsequent builds reuse already-downloaded .deb files.
+          ./build.sh --variant "$VARIANT" --arch "$ARCH" --no-clean --verbose
+          shopt -s nullglob
+          SRC=( images/*.iso )
+          test -e "${SRC[0]}" || { echo "ISO not produced!"; ls -la images/; exit 1; }
+          echo "iso_path=${SRC[0]}" >> "$GITHUB_OUTPUT"
+          echo "Built image: ${SRC[0]}"
+
+      - name: Rename + generate SHA256 checksum
+        id: rename
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          shopt -s nullglob
+          SRC=( images/*.iso )
+          LOG=( images/*.log )
+          test -e "${SRC[0]}" || { echo "ISO missing!"; exit 1; }
+          mv -f "${SRC[0]}" "images/shadow-${TAG}.iso"
+          mv -f "${LOG[0]}" "images/shadow-${TAG}.log" 2>/dev/null || true
+          ( cd images && sha256sum "shadow-${TAG}.iso" > "shadow-${TAG}.iso.sha256" )
+          echo "iso=images/shadow-${TAG}.iso" >> "$GITHUB_OUTPUT"
+          echo "sha=images/shadow-${TAG}.iso.sha256" >> "$GITHUB_OUTPUT"
+          echo "log=images/shadow-${TAG}.log" >> "$GITHUB_OUTPUT"
+          echo "----- sha256sum -----"
+          cat "images/shadow-${TAG}.iso.sha256"
+
+      - name: Report exact ISO size
+        id: size
+        run: |
+          ISO="${{ steps.rename.outputs.iso }}"
+          SIZE=$(stat -c%s "$ISO")
+          echo "size_bytes=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "Exact ISO size: $SIZE bytes ($(numfmt --to=iec-i --suffix=B $SIZE))"
+          # Hard cap: GitHub release assets must be < 2 GiB
+          if [ "$SIZE" -ge 2147483648 ]; then
+            echo "::error::ISO is >= 2 GiB and cannot be uploaded to a GitHub Release"
+            exit 1
+          fi
+          # Soft target: ~550 MB (v8 goal). Warn but do not fail; this is a
+          # loud signal when a large package sneaks back in.
+          if [ "$SIZE" -gt 576716800 ]; then
+            echo "::warning::ISO ($(numfmt --to=iec-i --suffix=B $SIZE)) exceeds the ~550 MB target set in version7to8.txt."
+          else
+            echo "ISO is within the ~550 MB target."
+          fi
+
+      - name: Verify checksum
+        run: |
+          cd images
+          sha256sum -c "shadow-${{ steps.version.outputs.tag }}.iso.sha256"
+
+      - name: Upload GitHub Actions artifacts (ISO + sha256 + build log)
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-iso-${{ steps.version.outputs.tag }}
+          path: |
+            images/shadow-${{ steps.version.outputs.tag }}.iso
+            images/shadow-${{ steps.version.outputs.tag }}.iso.sha256
+            images/shadow-${{ steps.version.outputs.tag }}.log
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Shadow.iso ${{ inputs.variant || 'shadow' }} - ${{ steps.version.outputs.tag }}
+          body: |
+            Shadow live ISO (variant `${{ inputs.variant || 'shadow' }}`, arch `${{ inputs.arch || 'amd64' }}`).
+
+            **Login:** Username `shadow` / Password `king` — auto-login enabled.
+            If auto-login is skipped, use `shadow` / `king` at the LightDM login screen.
+
+            **Hostname:** `egypt`
+            **Prompt:** `egypt@shadow:`
+
+            **Customizations:**
+            - GTK Theme: Kali-Dark
+            - Icon Theme: Flat-Remix-Orange-Dark
+            - Terminal: Green on Black, 30% transparency, Fira Code font
+            - Menubar: Hidden
+            - Fonts: Fira Code only (monospace)
+            - Calculator: Removed
+            - Browser: Firefox ESR
+            - Network: Ethernet Connected, Wi-Fi Ready
+            - Thunar: Full volume management (USB, drives auto-mount)
+            - Audio: PipeWire
+            - zram: enabled (~512 MB on 1 GB RAM)
+            - Security tools: nmap, sqlmap, nikto, gobuster, ffuf, hydra, tcpdump
+
+            Verified exact size: ${{ steps.size.outputs.size_bytes }} bytes.
+            See the attached `.sha256` to verify the download.
+          files: |
+            images/shadow-${{ steps.version.outputs.tag }}.iso
+            images/shadow-${{ steps.version.outputs.tag }}.iso.sha256
+            images/shadow-${{ steps.version.outputs.tag }}.log
+          fail_on_unmatched_files: true

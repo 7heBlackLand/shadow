@@ -1,0 +1,16 @@
+#!/bin/bash
+# remove-calculator.chroot — Remove mate-calc to reduce ISO size.
+#
+# Only removes it when the dependency chain allows it. If apt refuses because
+# mate-calc is required by another installed package, we KEEP it (dependency
+# integrity wins over size) and say so loudly. No --force-depends, and the
+# outcome is never hidden with `|| true`.
+set -e
+
+if dpkg -l mate-calc 2>/dev/null | grep -q '^ii'; then
+  if apt-get purge -y --auto-remove mate-calc; then
+    echo "INFO: mate-calc removed (not required by any installed package)"
+  else
+    echo "WARN: mate-calc is required by the dependency chain; keeping it installed" >&2
+  fi
+fi

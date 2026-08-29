@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# ensure-login.chroot — Guarantee that the "shadow" user exists with a known
+# password hash baked into the ISO at build time.
+#
+# Runs INSIDE THE CHROOT during the build (config/hooks/live/*.chroot run at
+# build time, not at boot). The boot-time password is set by the live-config
+# script 0031-kali-user-setup; keep the two in sync.
+#
+
+set -e
+
+USER="shadow"
+PASS="king"
+
+# Pick a shell that actually exists in the image; zsh is preferred but falls
+# back to bash when it is not installed (useradd fails if /bin/zsh is absent).
+if [ -x /bin/zsh ]; then
+  SHELL_PATH="/bin/zsh"
+else
+  SHELL_PATH="/bin/bash"
+fi
+
+# If the user does not exist yet, create it
+if ! getent passwd "$USER" >/dev/null 2>&1; then
+  # If a group with the same name already exists, useradd would fail trying to
+  # auto-create it as the login group, so attach the user to that existing group.
+  if getent group "$USER" >/dev/null 2>&1; then
+    useradd -m -s "$SHELL_PATH" -g "$USER" "$USER"
+  else
+    useradd -m -s "$SHELL_PATH" "$USER"
+  fi
+fi
+
+# Set the password (works even if the user already exists)
+echo "${USER}:${PASS}" | chpasswd
+
+# Ensure the user is in the standard Kali groups
+for grp in sudo adm dialout cdrom floppy audio dip video plugdev netdev wireshark; do
+  getent group "$grp" >/dev/null 2>&1 && usermod -a -G "$grp" "$USER" 2>/dev/null || true
+done
