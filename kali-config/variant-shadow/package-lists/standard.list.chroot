@@ -1,0 +1,11 @@
+## Override: the common standard.list.chroot pulls the Debian "standard"
+## priority set (via `! Packages Priority standard`), which includes
+## openssh-client. Since kali-linux-core depends on kali-system-core which
+## requires openssh-client-gssapi (Conflicts: openssh-client), the standard
+## set creates an unresolvable apt conflict in Kali rolling.
+##
+## The shadow variant explicitly lists all required packages in
+## kali.list.chroot, so the implicit standard set is not needed.
+##
+## This override replaces the common file for the shadow variant only;
+## other variants are unaffected.
