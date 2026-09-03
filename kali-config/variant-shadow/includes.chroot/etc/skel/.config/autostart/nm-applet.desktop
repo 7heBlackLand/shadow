@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Network Manager
+Comment=Network connection manager applet
+Exec=nm-applet
+Icon=nm-device-wireless
+Terminal=false
+X-GNOME-Autostart-enabled=true
+Hidden=false
+OnlyShowIn=XFCE;

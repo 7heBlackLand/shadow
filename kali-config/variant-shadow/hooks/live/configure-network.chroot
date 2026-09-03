@@ -10,6 +10,21 @@ cat > /etc/NetworkManager/conf.d/10-managed.conf << 'EOF'
 managed=true
 EOF
 
+# rc-manager: write a traditional /etc/resolv.conf (instead of pushing the
+# network-manager stub) so that DNS works reliably on the live system, even if
+# something reads /etc/resolv.conf directly.
+cat > /etc/NetworkManager/conf.d/20-resolv.conf << 'EOF'
+[main]
+rc-manager=file
+EOF
+
+# Enable NetworkManager to start on boot. On a stripped-down live image the
+# service may not be enabled despite the package being installed; without this
+# there is no connectivity at login.
+if [ -e /lib/systemd/system/NetworkManager.service ] || [ -e /usr/lib/systemd/system/NetworkManager.service ]; then
+  systemctl enable NetworkManager 2>/dev/null || true
+fi
+
 # Make sure the wireless adapters are not soft/hard blocked by rfkill,
 # otherwise NetworkManager cannot see or connect to any Wi-Fi network.
 # /dev/rfkill does not exist at chroot/build time, so ignore failure here;

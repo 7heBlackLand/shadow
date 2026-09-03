@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Thunar Daemon
+Comment=File manager daemon for desktop icons and auto-mounting
+Exec=thunar --daemon
+Icon=system-file-manager
+Terminal=false
+X-GNOME-Autostart-enabled=true
+Hidden=false
+OnlyShowIn=XFCE;

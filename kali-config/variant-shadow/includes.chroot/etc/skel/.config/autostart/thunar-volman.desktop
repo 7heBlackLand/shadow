@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Thunar Volume Manager
+Comment=Automatic management of removable drives and media
+Exec=thunar-volman
+Icon=media-removable
+Terminal=false
+X-GNOME-Autostart-enabled=true
+Hidden=false
+OnlyShowIn=XFCE;

@@ -20,7 +20,8 @@ lightdm
 lightdm-gtk-greeter
 
 ## Default shell + terminal (matches terminal-note: zsh is the live user's
-## shell, xfce4-terminal the x-terminal-emulator for the xfce variant)
+## shell, xfce4-terminal is the default terminal, auto-provided by the XFCE
+## desktop package).
 zsh
 xfce4-terminal
 

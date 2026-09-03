@@ -9,7 +9,7 @@ set -o pipefail # Bashism
 KALI_DIST="kali-rolling"
 KALI_VERSION=""
 KALI_VARIANT="default"
-TARGET_DIR="$(dirname $0)/images"
+TARGET_DIR="$(dirname "$0")/images"
 TARGET_SUBDIR=""
 SUDO="sudo"
 VERBOSE=""
@@ -129,7 +129,7 @@ require_package() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # Change directory into where the script is
-cd $(dirname $0)/
+cd "$(dirname "$0")/"
 
 # Allowed command line options
 source .getopt.sh
@@ -243,19 +243,19 @@ if [ "$ACTION" = "clean" ]; then
 fi
 
 # Create image output location
-mkdir -pv $TARGET_DIR/$TARGET_SUBDIR
+mkdir -pv "$TARGET_DIR/$TARGET_SUBDIR"
 [ $? -eq 0 ] || failure
 
 # Don't quit on any errors now
 set +e
 
 debug "Stage 1/2 - Config" # ./auto/config
-run_and_log lb config -a $KALI_ARCH $KALI_CONFIG_OPTS "$@"
+run_and_log lb config -a "$KALI_ARCH" $KALI_CONFIG_OPTS "$@"
 [ $? -eq 0 ] || failure
 
 debug "Stage 2/2 - Build"
 run_and_log $SUDO lb build # ./auto/build... but missing for us
-if [ $? -ne 0 ] || [ ! -e $IMAGE_NAME ]; then
+if [ $? -ne 0 ] || [ ! -e "$IMAGE_NAME" ]; then
   failure
 fi
 
